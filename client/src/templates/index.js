@@ -6,6 +6,7 @@ import LuckyWheel from './LuckyWheel.jsx';
 import Voting from './Voting.jsx';
 import Flashcard from './Flashcard.jsx';
 import ColorPalette from './ColorPalette.jsx';
+import CustomApp from './CustomApp.jsx';
 
 export const TEMPLATE_REGISTRY = {
   counter: { component: Counter, name: '计数器' },
@@ -16,4 +17,5 @@ export const TEMPLATE_REGISTRY = {
   voting: { component: Voting, name: '投票' },
   flashcard: { component: Flashcard, name: '记忆闪卡' },
   palette: { component: ColorPalette, name: '调色板' },
+  custom: { component: CustomApp, name: '定制小应用' },
 };

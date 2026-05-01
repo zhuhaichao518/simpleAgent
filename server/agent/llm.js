@@ -21,11 +21,12 @@ const client = new OpenAI({
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
-export async function chat(messages, { temperature = 0.4, responseFormat } = {}) {
+export async function chat(messages, { temperature = 0.4, responseFormat, maxTokens = 4096 } = {}) {
   const params = {
     model: DEFAULT_MODEL,
     messages,
     temperature,
+    max_tokens: maxTokens,
   };
   if (responseFormat === 'json') {
     params.response_format = { type: 'json_object' };

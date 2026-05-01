@@ -67,25 +67,52 @@ skills.register({
   name: 'generate_app',
   description: '根据 template + config 生成一个小应用并推到对话流里',
   handler: async ({ template, config, explain }, { memory, sessionId }) => {
-    const tpl = getTemplate(template);
-    if (!tpl) {
-      return {
-        events: [
-          {
-            type: 'message',
-            role: 'assistant',
-            content: `抱歉，没有 "${template}" 这个模板。可用模板：${TEMPLATES.map((t) => t.type).join(', ')}`,
-          },
-        ],
-        done: true,
+    let merged;
+    let templateName;
+
+    if (template === 'custom') {
+      // LLM 现场生成的定制小应用
+      const cfg = config || {};
+      if (!cfg.html || typeof cfg.html !== 'string') {
+        return {
+          events: [
+            {
+              type: 'message',
+              role: 'assistant',
+              content: '生成自定义应用时缺少 html 字段，我再试一次。',
+            },
+          ],
+          done: true,
+        };
+      }
+      merged = {
+        title: cfg.title || '自定义小应用',
+        html: cfg.html,
+        summary: cfg.summary || '',
       };
+      templateName = '自定义';
+    } else {
+      const tpl = getTemplate(template);
+      if (!tpl) {
+        return {
+          events: [
+            {
+              type: 'message',
+              role: 'assistant',
+              content: `抱歉，没有 "${template}" 这个模板。可用模板：${TEMPLATES.map((t) => t.type).join(', ')}, custom`,
+            },
+          ],
+          done: true,
+        };
+      }
+      merged = { ...tpl.defaults, ...(config || {}) };
+      templateName = tpl.name;
     }
 
-    const merged = { ...tpl.defaults, ...(config || {}) };
     const app = {
       id: 'app_' + nanoid(8),
       template,
-      templateName: tpl.name,
+      templateName,
       config: merged,
       createdAt: Date.now(),
     };

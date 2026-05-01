@@ -51,7 +51,10 @@ a { color: var(--accent); }
   display: flex;
   flex-direction: column;
   padding: 16px 14px;
+  overflow-y: auto;
 }
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .brand {
   font-size: 16px;
   font-weight: 700;
@@ -205,8 +208,79 @@ a { color: var(--accent); }
   font-size: 11px;
 }
 .app-card-actions button:hover { color: var(--text); }
+.app-card-actions button.open {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; border-color: transparent;
+}
 
 .app-frame { background: var(--panel-2); border-radius: 10px; padding: 14px; }
+
+/* 自定义 app: iframe 容器无内边距 + 悬浮全屏按钮 */
+.app-frame-custom { padding: 0; position: relative; overflow: hidden; }
+.app-frame-overlay {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(15,17,23,0.7); color: #fff;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 10px; border-radius: 6px; font-size: 11px;
+  backdrop-filter: blur(6px);
+}
+.app-frame-overlay:hover { background: var(--accent); border-color: transparent; }
+
+/* ---------- Fullscreen ---------- */
+.fullscreen-mask {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 200;
+  display: flex; flex-direction: column;
+  animation: fs-in 0.18s ease-out;
+}
+@keyframes fs-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.fullscreen-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.fullscreen-title { display: flex; align-items: center; gap: 10px; }
+.fullscreen-title .dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.fullscreen-title .meta { color: var(--muted); font-size: 12px; }
+.fullscreen-actions { display: flex; gap: 6px; }
+.fullscreen-actions button {
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+  border-radius: 6px; font-size: 12px;
+}
+.fullscreen-actions button:hover { color: var(--text); }
+.fullscreen-actions button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; border-color: transparent;
+}
+.fullscreen-body {
+  flex: 1; overflow: auto; min-height: 0;
+  background: var(--bg);
+}
+.fullscreen-stage {
+  width: 100%; height: 100%;
+}
+.fullscreen-stage.centered {
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px;
+}
+.fullscreen-stage.centered > * {
+  width: 100%; max-width: 560px;
+  background: var(--panel-2);
+  border-radius: 14px;
+  padding: 24px;
+  border: 1px solid var(--border);
+}
+.fullscreen-stage.flex { display: flex; }
+.fullscreen-stage.flex > iframe { flex: 1; height: 100% !important; }
 
 /* ---------- Composer ---------- */
 .composer {
@@ -376,6 +450,15 @@ a { color: var(--accent); }
   border: 1px solid var(--border);
 }
 .tpl-palette .copied { color: var(--success); font-size: 12px; margin-top: 8px; min-height: 16px; }
+
+/* 全屏模式下让常规模板也大一些 */
+.fullscreen-stage.centered .tpl-counter .num { font-size: 96px; }
+.fullscreen-stage.centered .tpl-timer .display { font-size: 96px; }
+.fullscreen-stage.centered .tpl-wheel .wheel-wrap { width: 320px; height: 320px; }
+.fullscreen-stage.centered .tpl-wheel svg { width: 320px; height: 320px; }
+.fullscreen-stage.centered .tpl-flashcard .card { height: 220px; }
+.fullscreen-stage.centered .tpl-flashcard .face { font-size: 28px; }
+.fullscreen-stage.centered .tpl-palette .swatch { width: 96px; height: 96px; font-size: 12px; }
 
 @media (max-width: 768px) {
   .sidebar { display: none; }

@@ -42,7 +42,7 @@ export async function runAgent({ sessionId, userInput, emit }) {
     const messages = buildMessages({ memory, sessionId, userInput: null });
     let raw;
     try {
-      raw = await chat(messages, { temperature: 0.4, responseFormat: 'json' });
+      raw = await chat(messages, { temperature: 0.4, responseFormat: 'json', maxTokens: 6000 });
     } catch (e) {
       const msg = `[LLM 调用失败] ${e.message}`;
       emit({ type: 'message', role: 'assistant', content: msg });
