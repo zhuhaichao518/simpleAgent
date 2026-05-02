@@ -28,11 +28,36 @@ export default function MessageList({ items, onUpdateApp, sessionId }) {
           );
         }
         if (it.kind === 'thinking') {
+          const stages = ['analyze', 'design', 'code', 'render'];
+          const stageLabels = {
+            analyze: '分析',
+            design: '规划',
+            code: '编码',
+            render: '上线',
+          };
+          const currentIdx = stages.indexOf(it.stage);
           return (
             <div key={it.id} className="msg-row">
               <div className="avatar assistant">🤖</div>
-              <div className="thinking">
-                {it.content || 'Agent 思考中'} <span className="dots" />
+              <div className="thinking-card">
+                <div className="thinking">
+                  {it.content || 'Agent 思考中'} <span className="dots" />
+                </div>
+                {currentIdx >= 0 && (
+                  <div className="progress-track">
+                    {stages.map((s, i) => (
+                      <div
+                        key={s}
+                        className={`progress-step ${
+                          i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''
+                        }`}
+                      >
+                        <span className="dot" />
+                        <span className="label">{stageLabels[s]}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );

@@ -34,7 +34,7 @@ export default function AppFullscreen({ app, onClose, onEdit, onShare }) {
       <div className="fullscreen-body">
         {Comp ? (
           <div className={`fullscreen-stage ${app.template === 'custom' ? 'flex' : 'centered'}`}>
-            <Comp config={app.config} fullscreen />
+            <Comp config={app.config} fullscreen appId={app.id} />
           </div>
         ) : (
           <div style={{ color: 'var(--muted)', padding: 40 }}>未知模板：{app.template}</div>

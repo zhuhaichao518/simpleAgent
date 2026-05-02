@@ -2,11 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar.jsx';
 import MessageList from './components/MessageList.jsx';
 import Composer from './components/Composer.jsx';
+import MyAppsModal from './components/MyAppsModal.jsx';
 import { streamChat, resetSession, updateAppOnServer } from './api.js';
+import { installLGBridge, setToastListener, clearAppKV } from './sdk/lgBridge.js';
 
 const SESSION_KEY = 'simple-agent-session';
 const STATE_KEY = 'simple-agent-state-v1';
 const SHOW_TRACE_KEY = 'simple-agent-show-trace';
+const MY_APPS_KEY = 'simple-agent-my-apps-v1';
 
 function getSessionId() {
   let id = localStorage.getItem(SESSION_KEY);
@@ -32,8 +35,48 @@ export default function App() {
   });
   const [busy, setBusy] = useState(false);
   const [showTrace, setShowTrace] = useState(() => localStorage.getItem(SHOW_TRACE_KEY) === '1');
+  const [toast, setToast] = useState(null);
+  const [myApps, setMyApps] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(MY_APPS_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [showMyApps, setShowMyApps] = useState(false);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MY_APPS_KEY, JSON.stringify(myApps));
+    } catch {}
+  }, [myApps]);
+
+  const upsertMyApp = (app) => {
+    setMyApps((prev) => {
+      const i = prev.findIndex((a) => a.id === app.id);
+      if (i >= 0) {
+        const next = [...prev];
+        next[i] = { ...prev[i], ...app, updatedAt: Date.now() };
+        return next;
+      }
+      return [...prev, { ...app, createdAt: app.createdAt || Date.now() }];
+    });
+  };
+
+  const deleteMyApp = (appId) => {
+    setMyApps((prev) => prev.filter((a) => a.id !== appId));
+    clearAppKV(appId);
+  };
+
+  useEffect(() => {
+    installLGBridge();
+    setToastListener((msg) => {
+      setToast(msg);
+      setTimeout(() => setToast(null), 2400);
+    });
+  }, []);
 
   useEffect(() => {
     try {
@@ -73,13 +116,13 @@ export default function App() {
   }, []);
 
   const append = (item) => setItems((prev) => [...prev, { id: newId(), ...item }]);
-  const updateThinking = (content) => {
+  const updateThinking = (content, stage) => {
     setItems((prev) => {
       const i = [...prev].reverse().findIndex((x) => x.kind === 'thinking');
       if (i < 0) return prev;
       const idx = prev.length - 1 - i;
       const next = [...prev];
-      next[idx] = { ...next[idx], content };
+      next[idx] = { ...next[idx], content, stage };
       return next;
     });
   };
@@ -105,13 +148,16 @@ export default function App() {
               }
               break;
             case 'thinking':
-              updateThinking('Agent 思考中');
+              updateThinking('Agent 思考中', null);
+              break;
+            case 'progress':
+              updateThinking(ev.text || 'Agent 工作中', ev.stage);
               break;
             case 'action':
               if (showTrace) {
                 append({ kind: 'trace', content: `[action] ${ev.action}\nthought: ${ev.thought || ''}\nargs: ${JSON.stringify(ev.args)}` });
               }
-              updateThinking(`正在执行 ${ev.action}`);
+              updateThinking(`正在执行 ${ev.action}`, 'render');
               break;
             case 'message':
               removeThinking();
@@ -121,10 +167,12 @@ export default function App() {
             case 'app':
               removeThinking();
               append({ kind: 'app', app: ev.app });
+              upsertMyApp(ev.app);
               append({ kind: 'thinking', content: 'Agent 思考中' });
               break;
             case 'app_update':
               setItems((prev) => prev.map((x) => (x.kind === 'app' && x.app.id === ev.app.id ? { ...x, app: ev.app } : x)));
+              upsertMyApp(ev.app);
               break;
             case 'done':
               removeThinking();
@@ -144,6 +192,7 @@ export default function App() {
 
   const onUpdateApp = async (appId, config) => {
     setItems((prev) => prev.map((x) => (x.kind === 'app' && x.app.id === appId ? { ...x, app: { ...x.app, config } } : x)));
+    setMyApps((prev) => prev.map((a) => (a.id === appId ? { ...a, config, updatedAt: Date.now() } : a)));
     try {
       await updateAppOnServer(appId, sessionId, config);
     } catch {}
@@ -162,7 +211,12 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar onPick={handleSend} onReset={onReset} />
+      <Sidebar
+        onPick={handleSend}
+        onReset={onReset}
+        onShowMyApps={() => setShowMyApps(true)}
+        myAppsCount={myApps.length}
+      />
       <main className="chat">
         <header className="chat-header">
           <div>
@@ -190,6 +244,15 @@ export default function App() {
 
         <Composer onSend={handleSend} busy={busy} showSuggestions={empty} />
       </main>
+      {toast && <div className="lg-toast">{toast}</div>}
+
+      {showMyApps && (
+        <MyAppsModal
+          apps={myApps}
+          onClose={() => setShowMyApps(false)}
+          onDelete={deleteMyApp}
+        />
+      )}
     </div>
   );
 }

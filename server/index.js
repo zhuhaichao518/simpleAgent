@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { runAgent } from './agent/loop.js';
 import { memory } from './agent/memory.js';
 import { TEMPLATES } from './agent/templates.js';
+import { chat as llmChat } from './agent/llm.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,38 @@ app.get('/api/session/:id', (req, res) => {
 app.delete('/api/session/:id', (req, res) => {
   memory.reset(req.params.id);
   res.json({ ok: true });
+});
+
+/**
+ * 沙箱 LLM 转发：给 iframe 里的 custom app 用
+ *
+ * - iframe 没有 same-origin，不能直接调 /api/chat（也不该让它访问会话上下文）
+ * - 所以单独开一个干净的端点，每次调用都是无状态的、独立的
+ * - 限制 prompt 长度和 max tokens 避免滥用
+ */
+app.post('/api/sandbox/llm', async (req, res) => {
+  try {
+    const { prompt, system, temperature, json } = req.body || {};
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+    if (prompt.length > 8000) {
+      return res.status(400).json({ error: 'prompt too long (max 8000 chars)' });
+    }
+    const messages = [];
+    if (system && typeof system === 'string') {
+      messages.push({ role: 'system', content: system.slice(0, 2000) });
+    }
+    messages.push({ role: 'user', content: prompt });
+    const text = await llmChat(messages, {
+      temperature: typeof temperature === 'number' ? temperature : 0.7,
+      maxTokens: 1500,
+      responseFormat: json ? 'json' : undefined,
+    });
+    res.json({ text });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'llm call failed' });
+  }
 });
 
 app.post('/api/app/:appId', (req, res) => {

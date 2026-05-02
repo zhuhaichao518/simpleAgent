@@ -1,20 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * 定制小应用：把 LLM 生成的 HTML 跑在 iframe 沙箱里
  *
  * - sandbox 不开 allow-same-origin，iframe 拿不到父页面的 cookie/localStorage，安全
- * - allow-scripts 允许 JS 跑起来
- * - 通过 postMessage 让 iframe 自报高度，达到自适应内容（嵌入卡片时）
- * - fullscreen 模式下直接占满，无需自适应
+ * - 注入 LG SDK：postMessage 桥到父页面，让 app 能调 LLM / TTS / 振动 / KV / Toast
+ * - 注入 自适应高度探针：嵌入卡片时根据内容自动撑高
+ * - fullscreen 模式下直接占满
  */
-export default function CustomApp({ config, fullscreen }) {
+export default function CustomApp({ config, fullscreen, appId }) {
   const { html = '<p style="padding:20px;color:#888">空内容</p>' } = config || {};
   const ref = useRef(null);
   const [autoHeight, setAutoHeight] = useState(360);
 
-  // 注入一段小脚本：内部 ResizeObserver -> postMessage 报告高度
-  const injected = injectAutoHeight(html);
+  // 注入：LG SDK + 自适应高度探针
+  const injected = useMemo(() => injectAll(html, appId || 'anon'), [html, appId]);
 
   useEffect(() => {
     function onMessage(e) {
@@ -47,8 +47,59 @@ export default function CustomApp({ config, fullscreen }) {
   );
 }
 
-function injectAutoHeight(html) {
-  const probe = `<script>(function(){
+function injectAll(html, appId) {
+  const sdk = buildSdkScript(appId);
+  const probe = buildProbeScript();
+  const inject = sdk + probe;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, inject + '</body>');
+  return html + inject;
+}
+
+function buildSdkScript(appId) {
+  // 注入到 iframe 内的 JS
+  // 用模板字符串拼好后发到 iframe srcdoc
+  return `<script>(function(){
+    var APP_ID = ${JSON.stringify(appId)};
+    var _id = 0;
+    var _pending = new Map();
+    function _call(method, params){
+      return new Promise(function(resolve, reject){
+        var id = ++_id;
+        _pending.set(id, { resolve: resolve, reject: reject });
+        try { parent.postMessage({ __LG: true, id: id, method: method, params: params || {}, appId: APP_ID }, '*'); }
+        catch(e){ _pending.delete(id); reject(e); return; }
+        setTimeout(function(){
+          if (_pending.has(id)) { _pending.delete(id); reject(new Error('LG.' + method + ' 超时')); }
+        }, 60000);
+      });
+    }
+    window.addEventListener('message', function(e){
+      var d = e.data;
+      if (!d || d.__LG_RES !== true) return;
+      var p = _pending.get(d.id);
+      if (!p) return;
+      _pending.delete(d.id);
+      if (d.ok) p.resolve(d.data);
+      else p.reject(new Error(d.error || 'LG call failed'));
+    });
+    window.LG = {
+      llm: function(prompt, opts){ return _call('llm', Object.assign({ prompt: prompt }, opts || {})); },
+      tts: function(text, opts){ return _call('tts', Object.assign({ text: text }, opts || {})); },
+      stopTTS: function(){ return _call('stopTTS'); },
+      vibrate: function(pattern){ return _call('vibrate', { pattern: pattern }); },
+      toast: function(msg){ return _call('toast', { msg: msg }); },
+      kv: {
+        get: function(key){ return _call('kv.get', { key: key }); },
+        set: function(key, value){ return _call('kv.set', { key: key, value: value }); },
+        remove: function(key){ return _call('kv.remove', { key: key }); },
+        keys: function(){ return _call('kv.keys'); }
+      }
+    };
+  })();<\/script>`;
+}
+
+function buildProbeScript() {
+  return `<script>(function(){
     function report(){
       try {
         var h = Math.max(
@@ -70,6 +121,4 @@ function injectAutoHeight(html) {
       setInterval(report, 1000);
     }
   })();<\/script>`;
-  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, probe + '</body>');
-  return html + probe;
 }

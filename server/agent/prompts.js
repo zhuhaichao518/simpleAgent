@@ -64,9 +64,41 @@ config 字段:
   9. 不要 alert / prompt / confirm；不要 console.log 影响交互
  10. 输出 JSON 时记得正确转义 html 字符串里的双引号、反斜杠和换行（用 \\n）
 
+【⭐ 重要 · 可调用的运行时 API（window.LG）】
+你生成的 HTML 在 iframe 中会自动获得 \`window.LG\` 对象，让小应用具备真实后端能力。
+能用就尽量用，应用会从「死的展示」变成「活的工具」：
+
+  // 调 LLM —— 让应用具备 AI 能力（写故事、翻译、点评、续写、出题、扮演角色等）
+  const reply = await LG.llm("用一句俏皮话夸夸我", { temperature: 0.8 });
+  // 也支持 system + json 模式：
+  const json = await LG.llm("...", { system: "你必须输出合法 JSON", json: true });
+
+  // 文字转语音（朗读）
+  await LG.tts("你好，世界", { lang: "zh-CN", rate: 1.0 });
+  await LG.stopTTS();                 // 停止朗读
+
+  // 振动（手机端有效）
+  await LG.vibrate(100);              // 振 100ms
+  await LG.vibrate([100,50,100]);     // 振-停-振 节奏
+
+  // 持久化存储（按应用隔离，重启浏览器不丢）—— 打卡器、记账、闯关存档必备
+  await LG.kv.set("count", 5);
+  const count = await LG.kv.get("count");   // null 或值
+  await LG.kv.remove("count");
+
+  // 在父页面顶部弹一条 toast 提示
+  await LG.toast("已保存");
+
+【调用 LG.* 的工程要求】
+  - LG 只在 DOM ready 后保证可用，建议在 window.onload 后调用
+  - LG.llm 可能 5-15 秒返回，UI 上要给 loading 状态（按钮 disabled / 显示「思考中…」），不要让用户瞎等
+  - LG.llm 失败要 try/catch 并显示一个友好的提示
+  - 短时间内连续调用同一个 LG.llm 会被限流（每 200ms 一次），不要在循环里疯狂调
+
 # 选择策略（重要）
 - 用户场景能匹配某个内置模板（计数 / 待办 / 计时 / 骰子 / 转盘 / 投票 / 闪卡 / 配色） → 直接用内置
-- 用户要的东西在内置里找不到（比如：BMI 计算器、汇率换算、单位换算、贪吃蛇、键盘练习、心率测试、塔罗抽牌、绕口令训练、口算题…） → 用 custom 现场写
+- 用户要的东西在内置里找不到（BMI 计算器、汇率换算、单位换算、贪吃蛇、键盘练习…） → 用 custom 现场写
+- 用户的需求隐含 AI 能力（如 "AI 故事书"、"AI 面试官"、"翻译"、"点评作文"、"塔罗解读"、"AI 续写"） → 必须用 custom 并调用 LG.llm
 - 不要纠结、不要反复确认；选完立刻生成
 
 # 风格

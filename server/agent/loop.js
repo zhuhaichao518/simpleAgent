@@ -38,11 +38,14 @@ export async function runAgent({ sessionId, userInput, emit }) {
 
   for (let step = 0; step < MAX_STEPS; step++) {
     emit({ type: 'thinking', step });
+    emit({ type: 'progress', stage: 'analyze', text: '分析需求 · 选择最合适的方案' });
 
     const messages = buildMessages({ memory, sessionId, userInput: null });
     let raw;
     try {
+      emit({ type: 'progress', stage: 'design', text: '调用规划 Agent · 生成方案' });
       raw = await chat(messages, { temperature: 0.4, responseFormat: 'json', maxTokens: 6000 });
+      emit({ type: 'progress', stage: 'code', text: '调用代码 Agent · 编写应用代码' });
     } catch (e) {
       const msg = `[LLM 调用失败] ${e.message}`;
       emit({ type: 'message', role: 'assistant', content: msg });
@@ -73,6 +76,10 @@ export async function runAgent({ sessionId, userInput, emit }) {
       emit({ type: 'message', role: 'assistant', content: msg });
       memory.appendMessage(sessionId, 'observation', `unknown action: ${action}`);
       continue;
+    }
+
+    if (action === 'generate_app') {
+      emit({ type: 'progress', stage: 'render', text: '渲染上线 · 即将出现在对话流中' });
     }
 
     const result = await skills.run(action, args, { memory, sessionId });

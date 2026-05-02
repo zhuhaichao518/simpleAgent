@@ -62,7 +62,7 @@ export default function AppCard({ app, onUpdate }) {
           onDoubleClick={() => setFullscreen(true)}
           title={isCustom ? '双击进入全屏' : ''}
         >
-          <Comp config={app.config} />
+          <Comp config={app.config} appId={app.id} />
           {isCustom && (
             <button className="app-frame-overlay" onClick={() => setFullscreen(true)}>
               ⛶ 进入全屏体验
