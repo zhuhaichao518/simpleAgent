@@ -4,9 +4,10 @@ import react from '@vitejs/plugin-react';
 /**
  * 通过环境变量 BASE_PATH 控制部署子路径
  * - 默认 '/'（挂在根）
- * - 设为 '/simpleAgent' 时整个 app 与所有 fetch 都会走 /simpleAgent/* 前缀
+ * - 设为 '/simpleagent' 时整个 app 与所有 fetch 都会走 /simpleagent/* 前缀
  *
  * 同样的 BASE_PATH 也喂给后端 server/index.js，保持一致。
+ * 建议子路径用全小写（nginx location 大小写敏感，URL 全小写也是 web 最佳实践）。
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');

@@ -2,10 +2,10 @@
  * 用 fetch + ReadableStream 解析后端的 SSE
  * （用 EventSource 不能 POST，所以手动解析）
  *
- * 所有 URL 都基于 import.meta.env.BASE_URL，方便整体挂在 /simpleAgent 这种子路径下
+ * 所有 URL 都基于 import.meta.env.BASE_URL，方便整体挂在 /simpleagent 这种子路径下
  */
 
-// e.g. '/simpleAgent' 或 '' （根挂载时）
+// e.g. '/simpleagent' 或 '' （根挂载时）
 export const API_BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
 const url = (p) => `${API_BASE}${p}`;

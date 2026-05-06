@@ -20,8 +20,9 @@ for arg in "$@"; do
   fi
 done
 
-# BASE_PATH 让整个应用挂在某个子路径下，如 /simpleAgent
-# 用法：BASE_PATH=/simpleAgent npm run package:bundled
+# BASE_PATH 让整个应用挂在某个子路径下，建议用全小写（如 /simpleagent）
+# 用法：BASE_PATH=/simpleagent npm run package:bundled
+# 注意：nginx location 大小写敏感，BASE_PATH 与 nginx 配置必须完全一致
 BASE_PATH_RAW="${BASE_PATH:-}"
 BASE_PATH_NORM="${BASE_PATH_RAW%/}"   # 去掉末尾斜杠
 

@@ -19,23 +19,29 @@
 
 ## 子路径部署（重要）
 
-如果你的主域名根路径或 `/api` 已经被别的服务占了，想把整个应用挂在 `/simpleAgent` 这种子路径下，**前端构建 + 后端启动 + nginx 反代** 三处 BASE_PATH 必须一致。
+如果你的主域名根路径或 `/api` 已经被别的服务占了，想把整个应用挂在 `/simpleagent` 这种子路径下，**前端构建 + 后端启动 + nginx 反代** 三处 BASE_PATH 必须一致。
+
+> ⚠️ **强烈建议子路径用全小写**（如 `/simpleagent`），不要用驼峰（如 `/simpleAgent`）：
+> - URL 路径全小写是 web 通用最佳实践，对 SEO / 缓存 / 用户书签更友好
+> - 浏览器、CDN、某些反代会把路径转小写后再匹配，驼峰路径在多层架构下可能命中错误的 location 块导致 SSE 失效等隐蔽问题
+> - nginx 的 `location` 大小写敏感，驼峰一旦写错一处就会绕过精确匹配
 
 ```bash
 # 本地打包：把子路径告诉构建脚本
-BASE_PATH=/simpleAgent npm run package:bundled
+BASE_PATH=/simpleagent npm run package:bundled
 ```
 
 打出来的 tarball 会：
-- 前端 asset 路径自动是 `/simpleAgent/assets/...`
-- `ecosystem.config.cjs` 自动注入 `BASE_PATH=/simpleAgent`，VPS 上启动时后端跟着挂到子路径
+- 前端 asset 路径自动是 `/simpleagent/assets/...`
+- `ecosystem.config.cjs` 自动注入 `BASE_PATH=/simpleagent`，VPS 上启动时后端跟着挂到子路径
 
 VPS 上解压、配 .env、`pm2 start` 流程不变。
 
-Nginx 配置参考 `deploy/nginx.conf.example` 文件末尾「场景 B」那几段 location，把它们贴进你已有的 server 块里即可（不需要拷整个 server 块）。访问 `https://your-domain.com/simpleAgent/` 就能用，主域名根路径和 `/api` 都不会被影响。
+Nginx 配置参考 `deploy/nginx.conf.example` 文件末尾「场景 B」那几段 location，把它们贴进你已有的 server 块里即可（不需要拷整个 server 块）。访问 `https://your-domain.com/simpleagent/` 就能用，主域名根路径和 `/api` 都不会被影响。
 
-> 验证：`curl https://your-domain.com/simpleAgent/api/health` 应返回 `{"ok":true,"basePath":"/simpleAgent"}`。
+> 验证：`curl https://your-domain.com/simpleagent/api/health` 应返回 `{"ok":true,"basePath":"/simpleagent"}`。
 > 如果返回 404，多半是 nginx 没把前缀转过去，或后端启动时 BASE_PATH 漏了。
+> 如果返回主站 SPA 首页，说明请求被主站 fallback 兜底吞掉了 —— 检查 nginx location 大小写是否一致。
 
 ---
 

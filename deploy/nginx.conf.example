@@ -78,16 +78,22 @@ server {
 
 
 # ┌─────────────────────────────────────────────────────────────┐
-# │ 场景 B：挂在 /simpleAgent 子路径下（主域名 / 和 /api 留空）    │
-# │   后端启动时：BASE_PATH=/simpleAgent                          │
-# │   本地打包时：BASE_PATH=/simpleAgent npm run package:bundled  │
+# │ 场景 B：挂在 /simpleagent 子路径下（主域名 / 和 /api 留空）    │
+# │   后端启动时：BASE_PATH=/simpleagent                          │
+# │   本地打包时：BASE_PATH=/simpleagent npm run package:bundled  │
 # │                                                             │
 # │ 把下面三段 location 加进你已有的 https server { ... } 块即可  │
 # │ （不需要拷整个 server 块，只要 location 段）                  │
+# │                                                             │
+# │ 注意：路径用全小写。nginx location 大小写敏感，与打包时的     │
+# │       BASE_PATH 必须完全一致；URL 全小写也是 web 通用最佳实践 │
+# │ 注意：如果你已有 location / { try_files ... /index.html; }   │
+# │       这种 SPA fallback，下面 3 段必须放在它的「前面」，否则会 │
+# │       被 fallback 提前吞掉，请求会落到主站首页而不是本服务    │
 # └─────────────────────────────────────────────────────────────┘
 #
-# # SSE 专用：关闭代理缓冲（必须放在 /simpleAgent/ 之前）
-# location /simpleAgent/api/chat {
+# # SSE 专用：关闭代理缓冲（必须放在 /simpleagent/ 之前）
+# location /simpleagent/api/chat {
 #     proxy_pass http://127.0.0.1:3001;
 #     proxy_http_version 1.1;
 #     proxy_set_header Connection '';
@@ -104,8 +110,8 @@ server {
 # }
 #
 # # 应用主路由 + 静态资源（注意路径要带 /，否则会丢前缀）
-# location /simpleAgent/ {
-#     proxy_pass http://127.0.0.1:3001;     # 末尾不加 /，让 nginx 把 /simpleAgent/* 原样转给后端
+# location /simpleagent/ {
+#     proxy_pass http://127.0.0.1:3001;     # 末尾不加 /，让 nginx 把 /simpleagent/* 原样转给后端
 #     proxy_http_version 1.1;
 #     proxy_set_header Host $host;
 #     proxy_set_header X-Real-IP $remote_addr;
@@ -114,7 +120,7 @@ server {
 #     proxy_read_timeout 120s;
 # }
 #
-# # 让访问 /simpleAgent (不带末尾斜杠) 也能正常打开
-# location = /simpleAgent {
-#     return 301 /simpleAgent/;
+# # 让访问 /simpleagent (不带末尾斜杠) 也能正常打开
+# location = /simpleagent {
+#     return 301 /simpleagent/;
 # }

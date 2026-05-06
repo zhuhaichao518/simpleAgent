@@ -13,10 +13,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * BASE_PATH 让整个应用能挂在某个子路径下，如 /simpleAgent
+ * BASE_PATH 让整个应用能挂在某个子路径下，建议用全小写（如 /simpleagent）
  * - 默认 ''（挂在根）
  * - 末尾不带斜杠
- * - 前端构建时用同样的值喂给 vite base
+ * - 前端构建时用同样的值喂给 vite base，nginx location 也要完全一致（大小写敏感）
  */
 const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/$/, '');
 
