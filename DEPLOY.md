@@ -45,6 +45,33 @@ Nginx 配置参考 `deploy/nginx.conf.example` 文件末尾「场景 B」那几�
 
 ---
 
+## 国内 VPS 出海代理（避免 OpenRouter 403）
+
+国内 VPS 直连 OpenAI / Anthropic / OpenRouter 经常被服务方按 IP 拒绝：
+
+```
+[LLM 调用失败] 403 This model is not available in your region.
+```
+
+如果你 VPS 上已有出海 HTTP 代理（如本地 Clash 在 `127.0.0.1:7897`），在 VPS 上的 `.env` 里加一行即可，**不需要改任何代码**：
+
+```bash
+LLM_PROXY=http://127.0.0.1:7897
+```
+
+启动时进程会打印 `[llm] 出口走代理: ...`，之后所有 LLM/RAG 等出向 fetch 都会走这个代理。
+
+支持的环境变量优先级（任选其一）：
+`LLM_PROXY` > `HTTPS_PROXY` > `HTTP_PROXY` > `ALL_PROXY`（大小写都吃）。
+
+> 验证代理本身能通：
+> `curl -x http://127.0.0.1:7897 https://ipinfo.io/ip` 应返回美/日/新加坡等海外 IP。
+> 如果 OpenRouter 仍 403，多半是代理出口 IP 也在黑名单（换节点）或 key 本身没有对应模型权限。
+
+改完 `.env` 后只要 `pm2 restart simple-agent` 就生效；不需要重新打包上传。
+
+---
+
 ## 二、本地预编译 + 上传 VPS（弱 VPS 首选 ⭐）
 
 适合：你的 VPS 配置很弱（1G 内存以下），跑 `npm run build` 会 OOM；或你不想在生产机上装一堆开发依赖。
