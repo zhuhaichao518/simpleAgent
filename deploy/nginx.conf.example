@@ -1,11 +1,21 @@
 # Nginx 反代示例：把 your-domain.com 的请求转给本机 :3001
 #
+# 本文件包含两种场景，按需挑一种使用：
+#   场景 A：整站独占（直接挂在根路径） —— 见下方 server { } 块
+#   场景 B：仅挂在子路径（推荐） —— 见文件末尾的 "场景 B" 段，把它合并进你已有的 server 块即可
+#
 # 关键点：
 #   1. SSE 必须关 buffering，否则 /api/chat 流会被 nginx 缓存导致延迟
 #   2. proxy_read_timeout 给到 5 分钟，避免 LLM 慢响应被切断
 #   3. 建议套 HTTPS（用 certbot 一键签 Let's Encrypt）
 #      - 浏览器原生 API 如 SpeechSynthesis、navigator.vibrate 在 http 下会被限制
 #      - LG.tts/LG.vibrate 走父页面，所以 https 是必须的
+#
+# ┌─────────────────────────────────────────────────────────────┐
+# │ 场景 A：整站独占（应用挂在根路径 / ）                          │
+# │   后端启动时 BASE_PATH 留空                                  │
+# │   前端构建时也不传 BASE_PATH                                 │
+# └─────────────────────────────────────────────────────────────┘
 
 server {
     listen 80;
@@ -65,3 +75,46 @@ server {
         add_header Cache-Control "public, immutable";
     }
 }
+
+
+# ┌─────────────────────────────────────────────────────────────┐
+# │ 场景 B：挂在 /simpleAgent 子路径下（主域名 / 和 /api 留空）    │
+# │   后端启动时：BASE_PATH=/simpleAgent                          │
+# │   本地打包时：BASE_PATH=/simpleAgent npm run package:bundled  │
+# │                                                             │
+# │ 把下面三段 location 加进你已有的 https server { ... } 块即可  │
+# │ （不需要拷整个 server 块，只要 location 段）                  │
+# └─────────────────────────────────────────────────────────────┘
+#
+# # SSE 专用：关闭代理缓冲（必须放在 /simpleAgent/ 之前）
+# location /simpleAgent/api/chat {
+#     proxy_pass http://127.0.0.1:3001;
+#     proxy_http_version 1.1;
+#     proxy_set_header Connection '';
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto $scheme;
+#
+#     proxy_buffering off;
+#     proxy_cache off;
+#     chunked_transfer_encoding on;
+#     proxy_read_timeout 300s;
+#     proxy_send_timeout 300s;
+# }
+#
+# # 应用主路由 + 静态资源（注意路径要带 /，否则会丢前缀）
+# location /simpleAgent/ {
+#     proxy_pass http://127.0.0.1:3001;     # 末尾不加 /，让 nginx 把 /simpleAgent/* 原样转给后端
+#     proxy_http_version 1.1;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto $scheme;
+#     proxy_read_timeout 120s;
+# }
+#
+# # 让访问 /simpleAgent (不带末尾斜杠) 也能正常打开
+# location = /simpleAgent {
+#     return 301 /simpleAgent/;
+# }

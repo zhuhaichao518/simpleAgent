@@ -18,6 +18,10 @@ const KV_MAX_VAL_LEN = 200_000; // 单 key 最大 200KB（足够对付绝大多�
 const RATE_LIMIT_MS = 200; // 同一个 iframe 最快 200ms 一次 LLM 调用
 const lastLlmCallAt = new WeakMap();
 
+// 与 import.meta.env.BASE_URL 保持一致；当应用挂在 /simpleAgent 子路径时
+// 这里就是 '/simpleAgent'，根挂载时是 ''
+const API_BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+
 let toastListener = null;
 export function setToastListener(fn) {
   toastListener = fn;
@@ -56,7 +60,7 @@ async function handleMessage(e) {
         lastLlmCallAt.set(source, now);
 
         const { prompt, system, temperature, json } = params || {};
-        const r = await fetch('/api/sandbox/llm', {
+        const r = await fetch(`${API_BASE}/api/sandbox/llm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt, system, temperature, json }),

@@ -5,13 +5,37 @@
 
 ## 一、推荐方案速选
 
-| 方案 | 难度 | 适合 | 费用 |
-| --- | --- | --- | --- |
-| **本地预编译 + scp 到 VPS**（⭐ 弱 VPS 首选） | ⭐ | VPS 内存 ≤1G、跑不动 build | VPS 月费 |
-| **VPS 直接 git clone + build** | ⭐⭐ | VPS 内存 ≥2G | VPS 月费 |
-| **Docker / Docker Compose** | ⭐⭐ | 自己服务器但不想装 Node | 同上 |
-| **Railway / Render / Fly.io** | ⭐ | 最快上线 | 有免费额度 |
-| **Vercel** | ⭐⭐⭐ | 已有 vercel 账号 | 免费 |
+
+| 方案                                | 难度  | 适合                   | 费用     |
+| --------------------------------- | --- | -------------------- | ------ |
+| **本地预编译 + scp 到 VPS**（⭐ 弱 VPS 首选） | ⭐   | VPS 内存 ≤1G、跑不动 build | VPS 月费 |
+| **VPS 直接 git clone + build**      | ⭐⭐  | VPS 内存 ≥2G           | VPS 月费 |
+| **Docker / Docker Compose**       | ⭐⭐  | 自己服务器但不想装 Node       | 同上     |
+| **Railway / Render / Fly.io**     | ⭐   | 最快上线                 | 有免费额度  |
+| **Vercel**                        | ⭐⭐⭐ | 已有 vercel 账号         | 免费     |
+
+
+---
+
+## 子路径部署（重要）
+
+如果你的主域名根路径或 `/api` 已经被别的服务占了，想把整个应用挂在 `/simpleAgent` 这种子路径下，**前端构建 + 后端启动 + nginx 反代** 三处 BASE_PATH 必须一致。
+
+```bash
+# 本地打包：把子路径告诉构建脚本
+BASE_PATH=/simpleAgent npm run package:bundled
+```
+
+打出来的 tarball 会：
+- 前端 asset 路径自动是 `/simpleAgent/assets/...`
+- `ecosystem.config.cjs` 自动注入 `BASE_PATH=/simpleAgent`，VPS 上启动时后端跟着挂到子路径
+
+VPS 上解压、配 .env、`pm2 start` 流程不变。
+
+Nginx 配置参考 `deploy/nginx.conf.example` 文件末尾「场景 B」那几段 location，把它们贴进你已有的 server 块里即可（不需要拷整个 server 块）。访问 `https://your-domain.com/simpleAgent/` 就能用，主域名根路径和 `/api` 都不会被影响。
+
+> 验证：`curl https://your-domain.com/simpleAgent/api/health` 应返回 `{"ok":true,"basePath":"/simpleAgent"}`。
+> 如果返回 404，多半是 nginx 没把前缀转过去，或后端启动时 BASE_PATH 漏了。
 
 ---
 
@@ -204,7 +228,7 @@ networks:
 
 ### Railway
 
-1. 浏览器上 https://railway.app/new → 导入 GitHub 仓库
+1. 浏览器上 [https://railway.app/new](https://railway.app/new) → 导入 GitHub 仓库
 2. Variables 标签：加 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`
 3. Settings → Networking → Generate Domain，得到一个 `*.up.railway.app` 子域
 4. 完事，访问就能用
@@ -238,14 +262,16 @@ Vercel 已经支持 SSE，`response_format: stream` 没问题。
 
 ## 七、踩坑清单
 
-| 现象 | 原因 | 解决 |
-| --- | --- | --- |
-| 对话不出字，30 秒后才一口气出来 | Nginx 缓冲了 SSE | 加 `proxy_buffering off` |
-| LG.tts 不响、LG.vibrate 没反应 | http 下被浏览器限制 | 上 HTTPS |
-| 502 Bad Gateway | server 没跑/端口不对 | `pm2 status` / `curl localhost:3001/api/health` |
-| 502 但偶尔能通 | LLM 调用超时被 nginx 切断 | 把 `proxy_read_timeout` 调到 300s |
-| GitHub Actions 想自动部署 | / | 看下面 §七 |
-| 接入私域用户太多想限速 | / | 在 `server/index.js` 加 `express-rate-limit` |
+
+| 现象                       | 原因                 | 解决                                              |
+| ------------------------ | ------------------ | ----------------------------------------------- |
+| 对话不出字，30 秒后才一口气出来        | Nginx 缓冲了 SSE      | 加 `proxy_buffering off`                         |
+| LG.tts 不响、LG.vibrate 没反应 | http 下被浏览器限制       | 上 HTTPS                                         |
+| 502 Bad Gateway          | server 没跑/端口不对     | `pm2 status` / `curl localhost:3001/api/health` |
+| 502 但偶尔能通                | LLM 调用超时被 nginx 切断 | 把 `proxy_read_timeout` 调到 300s                  |
+| GitHub Actions 想自动部署     | /                  | 看下面 §七                                          |
+| 接入私域用户太多想限速              | /                  | 在 `server/index.js` 加 `express-rate-limit`      |
+
 
 ---
 
@@ -287,3 +313,4 @@ jobs:
 - **加 rate limit**：装 `express-rate-limit`，对 `/api/chat` 和 `/api/sandbox/llm` 限速，比如 IP 30 次/分钟
 - **不要把 `.env` push 到仓库**：已经在 `.gitignore`，但部署时也别 cp 错
 - **浏览器侧依然要登录鉴权？** 可以在 server 加最简单的 Cookie / Bearer token 校验；现在是公开的，不适合放在公网长期裸奔
+

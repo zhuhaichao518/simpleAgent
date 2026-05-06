@@ -1,9 +1,17 @@
 /**
  * 用 fetch + ReadableStream 解析后端的 SSE
  * （用 EventSource 不能 POST，所以手动解析）
+ *
+ * 所有 URL 都基于 import.meta.env.BASE_URL，方便整体挂在 /simpleAgent 这种子路径下
  */
+
+// e.g. '/simpleAgent' 或 '' （根挂载时）
+export const API_BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+
+const url = (p) => `${API_BASE}${p}`;
+
 export async function streamChat({ sessionId, message, onEvent, signal }) {
-  const resp = await fetch('/api/chat', {
+  const resp = await fetch(url('/api/chat'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, message }),
@@ -37,16 +45,16 @@ export async function streamChat({ sessionId, message, onEvent, signal }) {
 }
 
 export async function fetchSession(sessionId) {
-  const r = await fetch(`/api/session/${sessionId}`);
+  const r = await fetch(url(`/api/session/${sessionId}`));
   return r.json();
 }
 
 export async function resetSession(sessionId) {
-  await fetch(`/api/session/${sessionId}`, { method: 'DELETE' });
+  await fetch(url(`/api/session/${sessionId}`), { method: 'DELETE' });
 }
 
 export async function updateAppOnServer(appId, sessionId, config) {
-  await fetch(`/api/app/${appId}`, {
+  await fetch(url(`/api/app/${appId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, config }),
@@ -54,6 +62,6 @@ export async function updateAppOnServer(appId, sessionId, config) {
 }
 
 export async function fetchTemplates() {
-  const r = await fetch('/api/templates');
+  const r = await fetch(url('/api/templates'));
   return r.json();
 }
