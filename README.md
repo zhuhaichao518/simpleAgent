@@ -54,6 +54,8 @@ npm start
 # 访问 http://localhost:3001
 ```
 
+> 💡 想部署到自己服务器或挂到自己域名上？看 [DEPLOY.md](./DEPLOY.md) —— VPS / Docker / Railway / Vercel 全场景指南。
+
 ---
 
 ## 试一试

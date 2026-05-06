@@ -1,0 +1,67 @@
+# Nginx 反代示例：把 your-domain.com 的请求转给本机 :3001
+#
+# 关键点：
+#   1. SSE 必须关 buffering，否则 /api/chat 流会被 nginx 缓存导致延迟
+#   2. proxy_read_timeout 给到 5 分钟，避免 LLM 慢响应被切断
+#   3. 建议套 HTTPS（用 certbot 一键签 Let's Encrypt）
+#      - 浏览器原生 API 如 SpeechSynthesis、navigator.vibrate 在 http 下会被限制
+#      - LG.tts/LG.vibrate 走父页面，所以 https 是必须的
+
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # certbot 验证目录（保留）
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # 其他全部跳 https
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+
+    # SSE 专用：关闭代理缓冲
+    location /api/chat {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding on;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    # 其他 API + 静态资源
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+
+    # 静态资源加缓存（可选）
+    location ~* \.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|webp|gif|ico)$ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+}

@@ -1,7 +1,9 @@
 node_modules
 .env
 dist
+dist-deploy
 .DS_Store
 *.log
+logs
 client/node_modules
 client/dist
